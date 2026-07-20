@@ -1,4 +1,4 @@
 __pycache__
 expenses.db
 *.csv
-
+.venv
