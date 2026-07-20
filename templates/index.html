@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spendly — Expense Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css')}}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head> 
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <strong>Spendly</strong>
+          <span>Expense tracker</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-section="dashboard">
+          <span>▦</span> Dashboard
+        </button>
+        <button class="nav-item" data-section="transactions">
+          <span>⇄</span> Transactions
+        </button>
+        <button class="nav-item" data-section="analytics">
+          <span>◔</span> Analytics
+        </button>
+        <button class="nav-item" data-section="settings">
+          <span>⚙</span> Settings
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="profile">
+          <div class="avatar">JC</div>
+          <div>
+            <strong>James</strong>
+            <span>Personal account</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <button class="icon-button mobile-only" id="menuButton" aria-label="Open menu">☰</button>
+          <p class="eyebrow">Overview</p>
+          <h1>Welcome back, James</h1>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="icon-button" id="themeToggle" aria-label="Toggle dark mode">☾</button>
+          <button class="primary-button" id="openModalButton">+ Add transaction</button>
+        </div>
+      </header>
+
+      <section class="stats-grid">
+        <article class="stat-card">
+          <div class="stat-header">
+            <span>Total balance</span>
+            <span class="stat-icon">€</span>
+          </div>
+          <strong id="balanceValue">€0.00</strong>
+          <small id="balanceTrend">Current balance</small>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-header">
+            <span>Income</span>
+            <span class="stat-icon positive">↗</span>
+          </div>
+          <strong id="incomeValue">€0.00</strong>
+          <small class="positive-text">Money received</small>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-header">
+            <span>Expenses</span>
+            <span class="stat-icon negative">↘</span>
+          </div>
+          <strong id="expenseValue">€0.00</strong>
+          <small class="negative-text">Money spent</small>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-header">
+            <span>Transactions</span>
+            <span class="stat-icon">#</span>
+          </div>
+          <strong id="transactionCount">0</strong>
+          <small>Recorded entries</small>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel chart-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Cash flow</p>
+              <h2>Income vs expenses</h2>
+            </div>
+            <select id="chartRange" class="select">
+              <option value="6">Last 6 months</option>
+              <option value="12">Last 12 months</option>
+            </select>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="cashflowChart"></canvas>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Categories</p>
+              <h2>Spending breakdown</h2>
+            </div>
+          </div>
+          <div class="chart-wrapper doughnut-wrapper">
+            <canvas id="categoryChart"></canvas>
+          </div>
+          <div id="categoryLegend" class="category-legend"></div>
+        </article>
+      </section>
+
+      <section class="panel transactions-panel">
+        <div class="panel-header transactions-header">
+          <div>
+            <p class="eyebrow">Activity</p>
+            <h2>Recent transactions</h2>
+          </div>
+          <div class="filters">
+            <input class="search-input" id="searchInput" type="search" placeholder="Search transactions..." />
+            <select class="select" id="categoryFilter">
+              <option value="all">All categories</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Merchant</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th class="align-right">Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="transactionTableBody"></tbody>
+          </table>
+        </div>
+
+        <div id="emptyState" class="empty-state hidden">
+          <div class="empty-icon">◎</div>
+          <h3>No transactions found</h3>
+          <p>Add a transaction or change your filters.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">New entry</p>
+          <h2 id="modalTitle">Add transaction</h2>
+        </div>
+        <button class="icon-button" id="closeModalButton" aria-label="Close modal">×</button>
+      </div>
+
+      <form id="transactionForm">
+        <div class="form-grid">
+          <label>
+            Type
+            <select name="type" class="input" required>
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </label>
+
+          <label>
+            Amount
+            <input name="amount" class="input" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+          </label>
+
+          <label>
+            Date
+            <input name="date" class="input" type="date" required />
+          </label>
+
+          <label>
+            Category
+            <input name="category" class="input" type="text" placeholder="Food, Transport..." required />
+          </label>
+
+          <label>
+            Merchant
+            <input name="merchant" class="input" type="text" placeholder="Carrefour, SNCF..." required />
+          </label>
+
+          <label class="full-width">
+            Description
+            <input name="description" class="input" type="text" placeholder="Optional note" />
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-button" id="cancelModalButton">Cancel</button>
+          <button type="submit" class="primary-button">Save transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../static/javascript/script.js"></script>
+</body>
+</html>

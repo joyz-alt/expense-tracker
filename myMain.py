@@ -31,7 +31,7 @@ def connect():
             conn.commit()
             print("table created successfuly")
 
-    except sqlite3.OperationalError as e:
+    except sqlite3.OperationalError as e:   
         print("Failed to open database: ", e) 
 
 
