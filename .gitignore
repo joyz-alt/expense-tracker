@@ -1,4 +1,16 @@
-__pycache__
-expenses.db
-*.csv
+# Python
+__pycache__/
+*.py[cod]
 .venv/
+
+# Database
+expenses.db
+
+# Exported data
+*.csv
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
