@@ -1,54 +1,58 @@
-const initialTransactions = [
-  {
-    id: 1,
-    date: "2026-07-18",
-    merchant: "Azaé",
-    category: "Salary",
-    description: "Monthly pay",
-    type: "income",
-    amount: 1008.00
-  },
-  {
-    id: 2,
-    date: "2026-07-17",
-    merchant: "Leclerc",
-    category: "Food",
-    description: "Groceries",
-    type: "expense",
-    amount: 47.82
-  },
-  {
-    id: 3,
-    date: "2026-07-16",
-    merchant: "SNCF",
-    category: "Transport",
-    description: "Train ticket",
-    type: "expense",
-    amount: 26.40
-  },
-  {
-    id: 4,
-    date: "2026-07-15",
-    merchant: "Decathlon",
-    category: "Sport",
-    description: "Cycling nutrition",
-    type: "expense",
-    amount: 19.99
-  },
-  {
-    id: 5,
-    date: "2026-07-12",
-    merchant: "CAF",
-    category: "Benefits",
-    description: "Prime d'activité",
-    type: "income",
-    amount: 278.00
-  }
-];
-
-let transactions = JSON.parse(localStorage.getItem("expenseTrackerTransactions")) || initialTransactions;
 let cashflowChart;
 let categoryChart;
+let transactions = [];
+
+
+
+function loadExpenses() {
+
+  fetch('/api/expenses').then(response => response.json()).then(data => {
+    console.log(data);
+
+    transactions = data.map(expense => {
+      return {
+        ...expense,
+        type: "expense"
+      };
+    });
+
+
+    refreshUI();
+  })
+}
+
+  
+
+function loadCategory() {
+
+  fetch('/api/expenses').then(response => response.json()).then(data => {
+    console.log(data);
+    const message = document.getElementById('expenseValue');
+
+    const total = data.reduce((sum, expense) => {
+      return sum + expense.amount;
+    }, 0);
+
+    message.textContent = total;
+  })
+}
+
+
+
+
+/*function addExpenses(){
+
+  fetch('/api/add').then(response => response.json()).then(data => {
+    console.log(data);
+
+    const transactionTableBody = document.getElementById('transactionTableBody');
+
+    transactionTableBody.textContent = expense.data;
+
+  });
+  
+}
+*/
 
 const euro = new Intl.NumberFormat("en-IE", {
   style: "currency",
@@ -76,8 +80,15 @@ const els = {
   categoryLegend: document.getElementById("categoryLegend")
 };
 
-function saveTransactions() {
-  localStorage.setItem("expenseTrackerTransactions", JSON.stringify(transactions));
+
+function saveTransaction(expense) {
+  fetch('/api/add', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(expense)
+  })
 }
 
 function openModal() {
@@ -133,6 +144,8 @@ function getFilteredTransactions() {
     })
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 }
+
+ 
 
 function renderTransactions() {
   const filtered = getFilteredTransactions();
@@ -298,17 +311,16 @@ els.transactionForm.addEventListener("submit", event => {
   event.preventDefault();
   const formData = new FormData(event.currentTarget);
 
-  transactions.push({
-    id: Date.now(),
+  const expense = {
     type: formData.get("type"),
     amount: Number(formData.get("amount")),
     date: formData.get("date"),
     category: formData.get("category").trim(),
     merchant: formData.get("merchant").trim(),
     description: formData.get("description").trim()
-  });
+  };
 
-  saveTransactions();
+  saveTransaction(expense);
   refreshUI();
   closeModal();
 });
@@ -317,9 +329,9 @@ els.tableBody.addEventListener("click", event => {
   const button = event.target.closest("[data-delete-id]");
   if (!button) return;
 
-  const id = Number(button.dataset.deleteId);
+  const id = Number(button.dataset.deleteId); 
   transactions = transactions.filter(t => t.id !== id);
-  saveTransactions();
+  saveTransaction();
   refreshUI();
 });
 
@@ -344,8 +356,13 @@ document.querySelectorAll(".nav-item").forEach(button => {
   });
 });
 
+
+
+
 if (localStorage.getItem("expenseTrackerTheme") === "dark") {
   document.body.classList.add("dark");
 }
 
-refreshUI();
+
+loadExpenses();
+

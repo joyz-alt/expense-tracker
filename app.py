@@ -7,7 +7,9 @@ from datetime import datetime
 
 app = Flask(__name__) #initializes the flask app
 BASE_DIR = Path(__file__).resolve().parent
+
 database = BASE_DIR / "expenses.db"
+
 date = datetime.now().strftime("%Y-%m-%d")
 
 
@@ -86,11 +88,6 @@ def update_expense():
     update_statement = 'UPDATE expenses SET date=?, amount=?, merchant=?, description=?, category=? WHERE id = ?'
     cursor = connexion.cursor()
     cursor.execute(update_statement, (date, 68, "Chez Auguste", "Pour la vida loca" ,"partying", 1))
-    cursor.execute(update_statement, (date, 52, "leclerc essence", "essence" ,"sport", 2))
-    cursor.execute(update_statement, (date, 70, "chaussea", "chaussure de ville" ,"clothes", 3))
-    cursor.execute(update_statement, (date, 68, "Chez Auguste", "Pour impressioner la femme de ma vie" ,"partying", 4))
-    cursor.execute(update_statement, (date, 90, "culture velo", "reparation velo de route" ,"sport", 5))
-    cursor.execute(update_statement, (date, 130, "sonora", "soiree" ,"amusement", 6))
     connexion.commit()
 
 def delete_expense(): 
@@ -102,13 +99,14 @@ def delete_expense():
 
 
 
-@app.route("/")
+@app.route("/") 
 @app.route("/index")
 def index():
     return render_template("index.html")
 
+
 @app.route("/api/expenses")
-def query_database():
+def query_expenses():
     rows = query_all()
     expenses = [dict(row) for row in rows]
     return jsonify(expenses)
@@ -121,7 +119,7 @@ def query_category():
 
 @app.route("/api/add", methods=["POST"])
 def add_expense_route():
-    data = request.get_json()
+    data = request.get_json() 
     
     expense = (
         data["date"],
@@ -149,7 +147,7 @@ def delete_expense_route():
     rows = delete_expense()
     delete = [dict(row) for row in rows]
     return jsonify(delete)
- """
+"""
 
 
 if __name__ == "__main__":
