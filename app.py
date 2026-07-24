@@ -90,12 +90,14 @@ def update_expense():
     cursor.execute(update_statement, (date, 68, "Chez Auguste", "Pour la vida loca" ,"partying", 1))
     connexion.commit()
 
-def delete_expense(): 
+def delete_expense(id): 
     connexion = get_database()
 
     cursor = connexion.cursor()
-    cursor.execute("DELETE FROM expenses")
+    delete = cursor.execute("DELETE FROM expenses WHERE id=?", (id,))
+    
     connexion.commit()
+    return delete
 
 
 
@@ -137,17 +139,20 @@ def add_expense_route():
     }), 201
 """
 @app.route("/api/update")
-def update_expense_route():
+def update_expense_route(): 
     rows = update_expense()
     update = [dict(row) for row in rows]
     return jsonify(update)
-
-@app.route("/api/delete")
-def delete_expense_route():
-    rows = delete_expense()
-    delete = [dict(row) for row in rows]
-    return jsonify(delete)
 """
+
+@app.route("/api/delete", methods=["POST"])
+def delete_expense_route():
+    id = request.get_json()
+    delete_expense(id)
+    return jsonify({
+        "id": id,
+        "message": "Transaction deleted"
+    }), 201
 
 
 if __name__ == "__main__":

@@ -2,10 +2,7 @@ let cashflowChart;
 let categoryChart;
 let transactions = [];
 
-
-
 function loadExpenses() {
-
   fetch('/api/expenses').then(response => response.json()).then(data => {
     console.log(data);
 
@@ -16,12 +13,9 @@ function loadExpenses() {
       };
     });
 
-
     refreshUI();
   })
 }
-
-  
 
 function loadCategory() {
 
@@ -36,23 +30,6 @@ function loadCategory() {
     message.textContent = total;
   })
 }
-
-
-
-
-/*function addExpenses(){
-
-  fetch('/api/add').then(response => response.json()).then(data => {
-    console.log(data);
-
-    const transactionTableBody = document.getElementById('transactionTableBody');
-
-    transactionTableBody.textContent = expense.data;
-
-  });
-  
-}
-*/
 
 const euro = new Intl.NumberFormat("en-IE", {
   style: "currency",
@@ -89,6 +66,17 @@ function saveTransaction(expense) {
     },
     body: JSON.stringify(expense)
   })
+}
+
+function deleteTransaction(id){
+  fetch("/api/delete", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(id)
+  })
+  
 }
 
 function openModal() {
@@ -331,7 +319,7 @@ els.tableBody.addEventListener("click", event => {
 
   const id = Number(button.dataset.deleteId); 
   transactions = transactions.filter(t => t.id !== id);
-  saveTransaction();
+  deleteTransaction(id);
   refreshUI();
 });
 
