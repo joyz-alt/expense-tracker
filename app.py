@@ -21,7 +21,26 @@ sql_statements = [
         amount REAL,
         merchant TEXT,
         description TEXT
-        )"""
+    )""",
+    """CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE
+    )"""
+]
+
+DEFAULT_CATEGORIES = [
+    "Food",
+    "Transport",
+    "Shopping",
+    "Sport",
+    "Entertainment",
+    "Housing",
+    "Utilities",
+    "Health",
+    "Salary",
+    "Investment",
+    "Gift",
+    "Other",
 ]
 
 
@@ -41,6 +60,21 @@ def initialise_database():
             
         for statement in sql_statements:
             cursor.execute(statement)
+
+        # Add the default choices without creating duplicates.
+        cursor.executemany(
+            "INSERT OR IGNORE INTO categories(name) VALUES(?)",
+            [(category,) for category in DEFAULT_CATEGORIES]
+        )
+
+        # Preserve categories already used by existing transactions.
+        cursor.execute("""
+            INSERT OR IGNORE INTO categories(name)
+            SELECT DISTINCT TRIM(category)
+            FROM expenses
+            WHERE category IS NOT NULL
+              AND TRIM(category) != ''
+        """)
 
         conn.commit()
         print("table created successfuly")
@@ -70,8 +104,27 @@ def query_all():
 
 def query_categories():
     connexion = get_database()
-    rows = connexion.execute("SELECT DISTINCT category FROM expenses").fetchall()
-    return rows
+    return connexion.execute(
+        "SELECT id, name FROM categories ORDER BY name COLLATE NOCASE"
+    ).fetchall()
+
+def add_category(name):
+    connexion = get_database()
+    cleaned_name = name.strip()
+
+    if not cleaned_name:
+        raise ValueError("Category name is required")
+
+    connexion.execute(
+        "INSERT OR IGNORE INTO categories(name) VALUES(?)",
+        (cleaned_name,)
+    )
+    connexion.commit()
+
+    return connexion.execute(
+        "SELECT id, name FROM categories WHERE name = ? COLLATE NOCASE",
+        (cleaned_name,)
+    ).fetchone()
 
 def add_expense(expense):
     connexion = get_database()
@@ -82,13 +135,17 @@ def add_expense(expense):
     connexion.commit()
     return cursor.lastrowid
 
-def update_expense():        
+def edit_expense(edit):
     connexion = get_database()
 
-    update_statement = 'UPDATE expenses SET date=?, amount=?, merchant=?, description=?, category=? WHERE id = ?'
-    cursor = connexion.cursor()
-    cursor.execute(update_statement, (date, 68, "Chez Auguste", "Pour la vida loca" ,"partying", 1))
+    update_statement = """
+        UPDATE expenses
+        SET date=?, amount=?, merchant=?, description=?, category=?
+        WHERE id=?
+    """
+    cursor = connexion.execute(update_statement, edit)
     connexion.commit()
+    return cursor.rowcount
 
 def delete_expense(id): 
     connexion = get_database()
@@ -113,11 +170,30 @@ def query_expenses():
     expenses = [dict(row) for row in rows]
     return jsonify(expenses)
 
-@app.route("/api/categories")
-def query_category():
-    rows = query_categories()
-    categories = [dict(row) for row in rows]
-    return jsonify(categories)
+@app.route("/api/categories", methods=["GET", "POST"])
+def categories_route():
+    if request.method == "GET":
+        rows = query_categories()
+        return jsonify([dict(row) for row in rows])
+
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()
+
+    if not name:
+        return jsonify({"message": "Category name is required"}), 400
+
+    if len(name) > 50:
+        return jsonify({"message": "Category name must be 50 characters or fewer"}), 400
+
+    try:
+        category = add_category(name)
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+    except sqlite3.Error:
+        app.logger.exception("Could not save category")
+        return jsonify({"message": "Could not save category"}), 500
+
+    return jsonify(dict(category)), 201
 
 @app.route("/api/add", methods=["POST"])
 def add_expense_route():
@@ -131,19 +207,38 @@ def add_expense_route():
         data.get("description"),
     )
 
+    add_category(data["category"])
     expense_id = add_expense(expense)
 
     return jsonify({
         "id": expense_id,
         "message": "Expense added"
     }), 201
-"""
-@app.route("/api/update")
-def update_expense_route(): 
-    rows = update_expense()
-    update = [dict(row) for row in rows]
-    return jsonify(update)
-"""
+
+@app.route("/api/edit", methods=["PUT"])
+def edit_expense_route():
+    data = request.get_json()
+
+    edit = (
+        data["date"],
+        data["amount"],
+        data.get("merchant"),
+        data.get("description"),
+        data["category"],
+        data["id"],
+    )
+
+    add_category(data["category"])
+    updated_rows = edit_expense(edit)
+
+    if updated_rows == 0:
+        return jsonify({"message": "Transaction not found"}), 404
+
+    return jsonify({
+        "id": data["id"],
+        "message": "Transaction has been edited"
+    }), 200
+
 
 @app.route("/api/delete", methods=["POST"])
 def delete_expense_route():
@@ -153,10 +248,14 @@ def delete_expense_route():
         "id": id,
         "message": "Transaction deleted"
     }), 201
+    
+    
+@app.route("/transactions")
+def transactions_page():
+    return render_template("transactions.html")
 
 
 if __name__ == "__main__":
     initialise_database()
     serve(app, host="0.0.0.0", port=8000)
-
 

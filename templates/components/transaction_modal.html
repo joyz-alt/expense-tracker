@@ -1,0 +1,72 @@
+<div class="modal-backdrop hidden" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <div>
+        <p class="eyebrow">New entry</p>
+        <h2 id="modalTitle">Add transaction</h2>
+      </div>
+      <button class="icon-button" id="closeModalButton" type="button" aria-label="Close modal">×</button>
+    </div>
+
+    <form id="transactionForm">
+      <div class="form-grid">
+        <label>
+          Type
+          <select name="type" class="input" required>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </label>
+
+        <label>
+          Amount
+          <input name="amount" class="input" type="number" step="0.01" min="0.01" placeholder="0.00" required>
+        </label>
+
+        <label>
+          Date
+          <input name="date" class="input" type="date" required>
+        </label>
+
+        <label>
+          Category
+          <select
+            id="categorySelect"
+            name="category"
+            class="input"
+            required
+          >
+            <option value="">Loading categories...</option>
+          </select>
+        </label>
+
+        <label id="newCategoryField" class="hidden">
+          New category
+          <input
+            id="newCategoryInput"
+            class="input"
+            type="text"
+            maxlength="50"
+            placeholder="Enter a category name"
+            autocomplete="off"
+          >
+        </label>
+
+        <label>
+          Merchant
+          <input name="merchant" class="input" type="text" placeholder="Carrefour, SNCF..." required>
+        </label>
+
+        <label class="full-width">
+          Description
+          <input name="description" class="input" type="text" placeholder="Optional note">
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" id="cancelModalButton">Cancel</button>
+        <button type="submit" class="primary-button">Save transaction</button>
+      </div>
+    </form>
+  </div>
+</div>

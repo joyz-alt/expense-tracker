@@ -104,6 +104,7 @@ button {
 
 .nav-item {
   border: 0;
+  text-decoration: none;
   border-radius: 12px;
   padding: 12px 14px;
   background: transparent;
@@ -416,16 +417,35 @@ td {
   font-weight: 700;
 }
 
+.transaction-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.edit-button,
 .delete-button {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 1rem;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    transition: 0.15s;
+}
+
+.edit-button:hover {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 .delete-button:hover {
-  color: var(--negative);
+    color: var(--negative);
+    background: color-mix(in srgb, var(--negative) 12%, transparent);
+    border: 0;
+    font-size: 1rem;
 }
+
 
 .empty-state {
   padding: 46px 20px;
@@ -555,4 +575,14 @@ td {
   .full-width {
     grid-column: auto;
   }
+}
+
+.sr-only {
+  width: 1px;
+  height: 1px;
+  position: absolute;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
 }
