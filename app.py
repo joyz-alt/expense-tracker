@@ -156,7 +156,7 @@ def find_user_by_email(email):
 
     return connexion.execute(
         """
-        SELECT id, name, email, password
+        SELECT id, name, email, password_hash
         FROM users
         WHERE email = ?
         """,
@@ -176,7 +176,7 @@ def auth_page():
 def registration():
     data = request.get_json() 
     
-    hashed_password = bcrypt.generate_password_hash(data["password_hash"]).decode('utf-8')
+    hashed_password = bcrypt.generate_password_hash(data["password"]).decode('utf-8')
 
     credentials = (
         data["name"],
@@ -212,7 +212,7 @@ def query_login_credentials():
             "message": "Invalid email or password"
         }), 401
 
-    is_valid = bcrypt.check_password_hash(user["password"],password)
+    is_valid = bcrypt.check_password_hash(user["password_hash"],password)
 
     if not is_valid:
         return jsonify({
