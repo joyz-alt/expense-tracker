@@ -3,18 +3,20 @@ from waitress import serve
 import sqlite3
 from pathlib import Path
 from datetime import datetime
+from flask_bcrypt import Bcrypt
 
 
 app = Flask(__name__) #initializes the flask app
 BASE_DIR = Path(__file__).resolve().parent
+bcrypt = Bcrypt(app)
 
-database = BASE_DIR / "expenses.db"
+expenses_database = BASE_DIR / "expenses.db"
+users_database = BASE_DIR / "users.db"
 
 date = datetime.now().strftime("%Y-%m-%d")
 
-
 sql_statements = [
-    """CREATE TABLE IF NOT EXISTS expenses (
+    """ CREATE TABLE IF NOT EXISTS expenses (
         id INTEGER PRIMARY KEY,
         date DATE,
         category TEXT,
@@ -22,9 +24,17 @@ sql_statements = [
         merchant TEXT,
         description TEXT
     )""",
-    """CREATE TABLE IF NOT EXISTS categories (
+    
+    """ CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL UNIQUE COLLATE NOCASE
+    )""",
+    
+    """ CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL
     )"""
 ]
 
@@ -46,13 +56,13 @@ DEFAULT_CATEGORIES = [
 
 def get_database():
     if "sqlite_db" not in g:        
-        g.sqlite_db = sqlite3.connect(database)
+        g.sqlite_db = sqlite3.connect(expenses_database)
         g.sqlite_db.row_factory = sqlite3.Row
     return g.sqlite_db
 
 
 def initialise_database():
-    conn = sqlite3.connect(database)
+    conn = sqlite3.connect(expenses_database)
 
     try :
         print(f"Opened SQLite database with version {sqlite3.sqlite_version} successfully.")
@@ -62,10 +72,7 @@ def initialise_database():
             cursor.execute(statement)
 
         # Add the default choices without creating duplicates.
-        cursor.executemany(
-            "INSERT OR IGNORE INTO categories(name) VALUES(?)",
-            [(category,) for category in DEFAULT_CATEGORIES]
-        )
+        cursor.executemany("INSERT OR IGNORE INTO categories(name) VALUES(?)",[(category,) for category in DEFAULT_CATEGORIES])
 
         # Preserve categories already used by existing transactions.
         cursor.execute("""
@@ -73,7 +80,7 @@ def initialise_database():
             SELECT DISTINCT TRIM(category)
             FROM expenses
             WHERE category IS NOT NULL
-              AND TRIM(category) != ''
+            AND TRIM(category) != ''
         """)
 
         conn.commit()
@@ -95,18 +102,13 @@ def close_database(error=None):
 
 
 
-
-
 def query_all():
     connexion = get_database()
-    rows = connexion.execute('SELECT * FROM expenses').fetchall()
-    return rows
+    return connexion.execute('SELECT * FROM expenses').fetchall()
 
 def query_categories():
     connexion = get_database()
-    return connexion.execute(
-        "SELECT id, name FROM categories ORDER BY name COLLATE NOCASE"
-    ).fetchall()
+    return connexion.execute("SELECT id, name FROM categories ORDER BY name COLLATE NOCASE").fetchall()
 
 def add_category(name):
     connexion = get_database()
@@ -115,54 +117,113 @@ def add_category(name):
     if not cleaned_name:
         raise ValueError("Category name is required")
 
-    connexion.execute(
-        "INSERT OR IGNORE INTO categories(name) VALUES(?)",
-        (cleaned_name,)
-    )
+    connexion.execute("INSERT OR IGNORE INTO categories(name) VALUES(?)",(cleaned_name,))
     connexion.commit()
 
-    return connexion.execute(
-        "SELECT id, name FROM categories WHERE name = ? COLLATE NOCASE",
-        (cleaned_name,)
-    ).fetchone()
+    return connexion.execute("SELECT id, name FROM categories WHERE name = ? COLLATE NOCASE",(cleaned_name,)).fetchone()
+
 
 def add_expense(expense):
     connexion = get_database()
-
-    sql = '''   INSERT INTO expenses(date, category, amount, merchant, description) VALUES(?, ?, ?, ?, ?)   '''
-
-    cursor = connexion.execute(sql, expense)            
+    cursor = connexion.execute("INSERT INTO expenses(date, category, amount, merchant, description) VALUES(?, ?, ?, ?, ?)", (expense))            
     connexion.commit()
     return cursor.lastrowid
 
 def edit_expense(edit):
     connexion = get_database()
-
-    update_statement = """
-        UPDATE expenses
-        SET date=?, amount=?, merchant=?, description=?, category=?
-        WHERE id=?
-    """
-    cursor = connexion.execute(update_statement, edit)
+    cursor = connexion.execute("UPDATE expenses SET date=?, amount=?, merchant=?, description=?, category=? WHERE id=? ", (edit))
     connexion.commit()
     return cursor.rowcount
 
 def delete_expense(id): 
     connexion = get_database()
-
-    cursor = connexion.cursor()
-    delete = cursor.execute("DELETE FROM expenses WHERE id=?", (id,))
-    
+    delete = connexion.execute("DELETE FROM expenses WHERE id=?", (id,))
     connexion.commit()
     return delete
 
+def register_account(credentials):
+    connexion = get_database()
+    cursor = connexion.execute("INSERT INTO users(name, email, password_hash) VALUES(?, ?, ?)", (credentials))    
+    connexion.commit()
+    return cursor.lastrowid
 
+def login_account():
+    connexion = get_database()
+    return connexion.execute("SELECT email, password FROM users")    
+
+def find_user_by_email(email):
+    connexion = get_database()
+
+    return connexion.execute(
+        """
+        SELECT id, name, email, password
+        FROM users
+        WHERE email = ?
+        """,
+        (email,)
+    ).fetchone()
 
 @app.route("/") 
 @app.route("/index")
 def index():
     return render_template("index.html")
 
+@app.route("/auth")
+def auth_page():
+    return render_template("auth.html")
+
+@app.route("/api/registration", methods=["POST"])
+def registration():
+    data = request.get_json() 
+    
+    hashed_password = bcrypt.generate_password_hash(data["password_hash"]).decode('utf-8')
+
+    credentials = (
+        data["name"],
+        data["email"],
+        hashed_password
+    )
+    
+    
+    user_id = register_account(credentials)
+    
+    if user_id is None:
+        return jsonify({
+            "message": "Could not create account"
+        }), 500
+
+    return jsonify({
+        "id": user_id,
+        "message": "Account registered successfully"
+    }), 201
+    
+
+@app.route("/api/login", methods=["POST"])
+def query_login_credentials():
+    data = request.get_json()
+
+    email = data["email"]
+    password = data["password"]
+
+    user = find_user_by_email(email)
+
+    if user is None:
+        return jsonify({
+            "message": "Invalid email or password"
+        }), 401
+
+    is_valid = bcrypt.check_password_hash(user["password"],password)
+
+    if not is_valid:
+        return jsonify({
+            "message": "Invalid email or password"
+        }), 401
+
+    return jsonify({
+        "id": user["id"],
+        "name": user["name"],
+        "message": "Login successful"
+    }), 200
 
 @app.route("/api/expenses")
 def query_expenses():
@@ -194,6 +255,7 @@ def categories_route():
         return jsonify({"message": "Could not save category"}), 500
 
     return jsonify(dict(category)), 201
+
 
 @app.route("/api/add", methods=["POST"])
 def add_expense_route():
